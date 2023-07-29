@@ -1,0 +1,36 @@
+data
+storage*
+logs*
+# Python-specific files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyc
+.Python
+env/
+venv/
+*.log
+
+# IntelliJ-specific files
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Visual Studio Code
+.vscode/
+
+# General build artifacts
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+

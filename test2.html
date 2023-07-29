@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Client</title>
+</head>
+<body>
+    <h1>WebSocket Client</h1>
+    <div id="output"></div>
+
+    <script>
+        const socket = new WebSocket('ws://localhost:8765');
+
+        socket.onopen = function () {
+            console.log('WebSocket connection opened.');
+            // Send a subscription request to the server
+            const message = { action: 'subscribe', channel: 'get' };
+            socket.send(JSON.stringify(message));
+        };
+
+        socket.onmessage = function (event) {
+            const data = JSON.parse(event.data);
+            console.log('Received data:', data);
+            // Display the received data in the output div
+            const outputDiv = document.getElementById('output');            
+            outputDiv.innerHTML = `Received: ${JSON.stringify(data)}`;
+        };
+
+        socket.onclose = function (event) {
+            console.log('WebSocket connection closed:', event);
+        };
+    </script>
+</body>
+</html>
