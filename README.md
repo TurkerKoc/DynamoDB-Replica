@@ -1,7 +1,9 @@
 
 ### TODOs
-+ Finish handleMetaDataChange
-+ Change Shutdown hook logic -> if there are >2 #servers directly shutdown else transfer data and shutdown 
++ Keyrange subscription (add to ecs as well)
++ Data request response
++ Test scripts
++ Report
 
 
 ### Docker login

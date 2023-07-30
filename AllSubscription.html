@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Client</title>
+</head>
+<body>
+    <h1>WebSocket Client</h1>
+    <div id="output"></div>
+
+    <script>
+        const socket = new WebSocket('ws://localhost:8765');
+
+        socket.onopen = function () {
+            console.log('WebSocket connection opened.');
+            let message = { action: 'subscribe', type: 'operation', name: 'get' };
+            socket.send(JSON.stringify(message));
+            message = { action: 'subscribe', type: 'operation', name: 'put' };
+            socket.send(JSON.stringify(message));
+            message = { action: 'subscribe', type: 'key', name: 'myKey' };
+            socket.send(JSON.stringify(message));
+        };
+
+        // Define different handlers for different operations or keys
+        const operationHandlers = {
+            'get': function(data) {
+                console.log(`Received a 'get' operation with data:`, JSON.stringify(data));
+                // ...do something with the data...
+            },
+            'put': function(data) {
+                console.log(`Received a 'put' operation with data:`, data);
+                // ...do something with the data...
+            }
+        };
+
+        const keyHandlers = {
+            'myKey': function(data) {
+                console.log(`Received data for 'myKey':`, data);
+                // ...do something with the data...
+            },
+            // Add more handlers as needed...
+        };
+
+
+        
+
+        socket.onmessage = function (event) {
+            const data = JSON.parse(event.data);
+
+            // Call the appropriate handler based on the operation or key
+            if (data.type === "key" && data.key && keyHandlers[data.key]) {
+                console.log("here")
+                keyHandlers[data.key](data);
+            } else if (data.type === "operation" && data.operation && operationHandlers[data.operation]) {
+                console.log("oeprationn")
+                operationHandlers[data.operation](data);
+            }  else {
+                console.warn(`No handler found for operation "${data.operation}" or key "${data.key}"`);
+            }
+        };
+
+        socket.onclose = function (event) {
+            console.log('WebSocket connection closed:', event);
+        };
+
+
+
+
+
+    </script>
+</body>
+</html>

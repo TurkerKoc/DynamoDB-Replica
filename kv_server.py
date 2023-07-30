@@ -29,64 +29,89 @@ server = None
 thread = None
 
 # Dictionary to store subscribed clients for each channel
-channels = {}
+channels = {'key': {}, 'operation': {}}
 eventQueue = queue.Queue() # queue for storing messages to be published
 
-async def subscribe(websocket, channel):
-    print(f"subscribing to channel: {channel}")
-    if channel not in channels:
-        channels[channel] = set()
-    channels[channel].add(websocket)
+async def subscribe(websocket, subscription_type, name):
+    print(f"subscribing to {subscription_type}: {name}")
+    if name not in channels[subscription_type]:
+        channels[subscription_type][name] = set()
+    channels[subscription_type][name].add(websocket)
+    print(channels)
 
-async def unsubscribe(websocket, channel):
-    if channel in channels:
-        channels[channel].discard(websocket)
+async def unsubscribe(websocket, subscription_type, name):
+    print("inside unsbs")
+    if name in channels[subscription_type]:
+        channels[subscription_type][name].discard(websocket)
+    print(channels)
 
 async def handle_client(websocket, path):
     # Assume clients will send a JSON message to subscribe/unsubscribe
     async for message in websocket:
         data = json.loads(message)
+        print(f"handle {data}")
         if data.get('action') == 'subscribe':
-            await subscribe(websocket, data.get('channel'))
+            await subscribe(websocket, data.get('type'), data.get('name'))
         elif data.get('action') == 'unsubscribe':
-            await unsubscribe(websocket, data.get('channel'))
+            await unsubscribe(websocket, data.get('type'), data.get('name'))
 
 def run_async_server():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    start_server = websockets.serve(handle_client, 'localhost', 8765)
+    start_server = websockets.serve(handle_client, '0.0.0.0', 8765)
     loop.run_until_complete(start_server)
     loop.run_until_complete(publish_data())
     loop.run_forever()
 
 
 async def publish_data():
-    # while True:
-    #     # Simulate some data to be published to clients
-    #     data = {
-    #         'channel': 'get',
-    #         'message': f'Random value: {random.randint(1, 100)}'
-    #     }
-    #     for websocket in channels.get('get', set()):
-    #         await websocket.send(json.dumps(data))
-    #     await asyncio.sleep(1)  # Publish data every 1 second
-    eventQueue.put(('get', 'test', 'test'))
+    # eventQueue.put(('get', 'test', 'test'))
     while True:
+        print("at the beginning")
         await asyncio.sleep(1)  # Publish data every 1 second
+        print("after wait")
+        if eventQueue.empty():
+            continue
+
         print("publishing data")
-        channel, key, value = eventQueue.get()        
+        operation, key, value = eventQueue.get()        
         # Simulate some data to be published to clients
         data = {
-            'channel': channel,
+            'operation': operation,
             'key': key,
             'value': value
         }
         print(data)
         print(channels)
-        for websocket in channels.get(channel, set()):
+        
+        # if channels.get('operations', {}).get(operation) or channels.get('keys', {}).get(key):
+            # There's at least one websocket to send data to
+
+        data['type'] = "operation"
+        # Send data to clients subscribed to this operation
+        for websocket in channels['operation'].get(operation, set()):
+            
             print("sending data")
-            await websocket.send(json.dumps(data))
+            try:
+                await websocket.send(json.dumps(data))
+            except:
+                pass
+
+        data['type'] = "key"
+        # Send data to clients subscribed to this key
+        for websocket in channels['key'].get(key, set()):
+            print("sending data")
+            try:
+                await websocket.send(json.dumps(data))
+            except:
+                pass
+
         eventQueue.task_done()
+
+        # for websocket in channels.get(channel, set()):
+        #     print("sending data")
+        #     await websocket.send(json.dumps(data))
+        # eventQueue.task_done()
 
 def configure_logging(file_path, level=logging.INFO):
     # if not os.path.exists(os.path.join(os.getcwd(),file_path)):
@@ -856,7 +881,7 @@ if __name__ == "__main__":
 
         print("Started")
         # time.sleep(10) # wait for server to start        
-        print("get test test")
+        # print("get test test")
 
 
         # Keep the main thread alive, waiting for termination signals
