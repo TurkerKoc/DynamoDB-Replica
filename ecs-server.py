@@ -8,10 +8,87 @@ import metaData
 import signal
 import time
 import sys
+import asyncio
+import websockets
+import queue
+import json
+
 # Global variables
 meta_data = metaData.MetaData()
 addRemoveLock = threading.Lock() # lock for adding and removing servers
 server = None
+
+channels = {'operation': {}}
+eventQueue = queue.Queue() # queue for storing messages to be published
+
+
+async def subscribe(websocket, subscription_type, name):
+    print(f"subscribing to {subscription_type}: {name}")
+    if name not in channels[subscription_type]:
+        channels[subscription_type][name] = set()
+    channels[subscription_type][name].add(websocket)
+    print(channels)
+
+async def unsubscribe(websocket, subscription_type, name):
+    print("inside unsbs")
+    if name in channels[subscription_type]:
+        channels[subscription_type][name].discard(websocket)
+    print(channels)
+
+async def handle_client(websocket, path):
+    # Assume clients will send a JSON message to subscribe/unsubscribe
+    async for message in websocket:
+        data = json.loads(message)
+        print(f"handle {data}")
+        if data.get('action') == 'subscribe':
+            await subscribe(websocket, data.get('type'), data.get('name'))
+        elif data.get('action') == 'unsubscribe':
+            await unsubscribe(websocket, data.get('type'), data.get('name'))
+
+def run_async_server():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    start_server = websockets.serve(handle_client, '0.0.0.0', int(args.port) + 100)
+    loop.run_until_complete(start_server)
+    loop.run_until_complete(publish_data())
+    loop.run_forever()
+
+async def publish_data():
+    # eventQueue.put(('get', 'test', 'test'))
+    while True:
+        print("at the beginning")
+        await asyncio.sleep(1)  # Publish data every 1 second
+        print("after wait")
+        if eventQueue.empty():
+            continue
+
+        print("publishing data")
+        operation, queueData = eventQueue.get()        
+        # Simulate some data to be published to clients
+        data = {
+            'operation': operation,
+            'data' : queueData
+        }
+        print(data)
+        print(channels)
+        
+        # if channels.get('operations', {}).get(operation) or channels.get('keys', {}).get(key):
+            # There's at least one websocket to send data to
+
+        data['type'] = "operation"
+        # Send data to clients subscribed to this operation
+        for websocket in channels['operation'].get(operation, set()):
+            
+            print("sending data")
+            try:
+                await websocket.send(json.dumps(data))
+            except:
+                pass
+
+        eventQueue.task_done()
+
+
+
 
 def configure_logging(file_path, level=logging.INFO):
     # if not os.path.exists(os.path.join(os.getcwd(),file_path)):
@@ -93,6 +170,8 @@ def sendUpdatedMetaDataToAllServers():
     #TODO send updated meta data to all servers
     # time.sleep(2)
     # global client_socket
+    # put into eventQueue -> 'keyrange' and meta_data.ranges as JSON    
+    eventQueue.put(('keyrange', json.dumps(meta_data.ranges)))
     for i in meta_data.ranges:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect((i['ip'], int(i['port'])))
@@ -312,7 +391,8 @@ if __name__ == "__main__":
     configure_logging(args.log, level=args.loglevel)
 
     # print("Started")
-
+    async_server_thread = threading.Thread(target=run_async_server)
+    async_server_thread.start()
 
     with GracefulThreadingTCPServer((args.address, int(args.port)), MyRequestHandler) as server:
 
@@ -324,3 +404,4 @@ if __name__ == "__main__":
         # Keep the main thread alive, waiting for termination signals
         while True:
             server_thread.join(1)
+            async_server_thread.join(1)

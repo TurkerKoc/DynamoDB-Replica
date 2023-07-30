@@ -1,6 +1,6 @@
 
 ### TODOs
-+ Keyrange subscription (add to ecs as well)
++ (DONE) Keyrange subscription (through ECS)
 + Data request response
 + Test scripts
 + Report

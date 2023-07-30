@@ -1,14 +1,62 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>WebSocket Client</title>
 </head>
+
 <body>
     <h1>WebSocket Client</h1>
     <div id="output"></div>
 
     <script>
-        const socket = new WebSocket('ws://localhost:8765');
+        const socket = new WebSocket('ws://localhost:8101');
+        const ecsSocket = new WebSocket('ws://localhost:8100');
+
+        ecsSocket.onopen = function () {
+            console.log('ECS WebSocket connection opened.');
+            let message = { action: 'subscribe', type: 'operation', name: 'keyrange' };
+            ecsSocket.send(JSON.stringify(message));
+        };
+
+        // Define different handlers for different operations or keys
+        const ecsHandlers = {
+            'keyrange': function (data) {
+                console.log(`Received a 'keyrange' operation with data:`);
+                const parsedData = JSON.parse(data.data, (key, value) => {
+                    // Convert "start" and "end" keys to lowercase to handle case-insensitivity
+                    return value;
+                });
+
+                console.log(parsedData);
+                // console.log(data.data)
+                // for (curData in data.data) {
+                //     console.log(curData);
+                //     console.log(JSON.parse(curData));
+                // }                
+                // ...do something with the data...
+            }
+        };
+
+        ecsSocket.onmessage = function (event) {
+            const data = JSON.parse(event.data);
+            if (data.type === "operation" && data.operation && ecsHandlers[data.operation]) {
+                console.log("ecs operation")
+                ecsHandlers[data.operation](data);
+            } else {
+                console.warn(`No ECS handler found for operation "${data.operation}" or key "${data.key}"`);
+            }
+        };
+
+        ecsSocket.onclose = function (event) {
+            console.log('ECS WebSocket connection closed:', event);
+        };
+
+
+
+
+
+
 
         socket.onopen = function () {
             console.log('WebSocket connection opened.');
@@ -22,18 +70,18 @@
 
         // Define different handlers for different operations or keys
         const operationHandlers = {
-            'get': function(data) {
+            'get': function (data) {
                 console.log(`Received a 'get' operation with data:`, JSON.stringify(data));
                 // ...do something with the data...
             },
-            'put': function(data) {
+            'put': function (data) {
                 console.log(`Received a 'put' operation with data:`, data);
                 // ...do something with the data...
             }
         };
 
         const keyHandlers = {
-            'myKey': function(data) {
+            'myKey': function (data) {
                 console.log(`Received data for 'myKey':`, data);
                 // ...do something with the data...
             },
@@ -41,7 +89,7 @@
         };
 
 
-        
+
 
         socket.onmessage = function (event) {
             const data = JSON.parse(event.data);
@@ -53,7 +101,7 @@
             } else if (data.type === "operation" && data.operation && operationHandlers[data.operation]) {
                 console.log("oeprationn")
                 operationHandlers[data.operation](data);
-            }  else {
+            } else {
                 console.warn(`No handler found for operation "${data.operation}" or key "${data.key}"`);
             }
         };
@@ -68,4 +116,5 @@
 
     </script>
 </body>
+
 </html>

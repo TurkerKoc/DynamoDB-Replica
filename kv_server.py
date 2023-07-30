@@ -13,9 +13,7 @@ import shutil
 import copy
 import asyncio
 import websockets
-import random
 import queue
-import time
 
 
 metadata = []
@@ -58,7 +56,7 @@ async def handle_client(websocket, path):
 def run_async_server():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    start_server = websockets.serve(handle_client, '0.0.0.0', 8765)
+    start_server = websockets.serve(handle_client, '0.0.0.0', int(args.port) + 100)
     loop.run_until_complete(start_server)
     loop.run_until_complete(publish_data())
     loop.run_forever()
