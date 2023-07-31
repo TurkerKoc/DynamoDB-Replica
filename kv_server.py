@@ -43,6 +43,23 @@ async def unsubscribe(websocket, subscription_type, name):
         channels[subscription_type][name].discard(websocket)
     print(channels)
 
+async def sendAllData(websocket):
+    print("sending all data")
+    data = {
+        'type': 'data'
+    }
+    kvdata = {} 
+    for i, obj in enumerate(kvs):
+        kvdata[f'{obj.ip}:{obj.port}'] = json.dumps(obj.get_all_data())
+
+    data['data'] = json.dumps(kvdata)
+
+    print(data)
+    try:
+        await websocket.send(json.dumps(data))
+    except:
+        pass
+
 async def handle_client(websocket, path):
     # Assume clients will send a JSON message to subscribe/unsubscribe
     async for message in websocket:
@@ -52,6 +69,8 @@ async def handle_client(websocket, path):
             await subscribe(websocket, data.get('type'), data.get('name'))
         elif data.get('action') == 'unsubscribe':
             await unsubscribe(websocket, data.get('type'), data.get('name'))
+        elif data.get('action') == 'data':
+            await sendAllData(websocket)
 
 def run_async_server():
     loop = asyncio.new_event_loop()

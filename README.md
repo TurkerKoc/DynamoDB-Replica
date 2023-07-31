@@ -1,7 +1,9 @@
 
 ### TODOs
 + (DONE) Keyrange subscription (through ECS)
-+ Data request response
++ (DONE) Data request response
++ (DONE) Dummy html js frontend (run first ECS (port 8000) and at least one (port 8001) KVServer. After that AllSubscription.html can be tested)
++ Frontend
 + Test scripts
 + Report
 
