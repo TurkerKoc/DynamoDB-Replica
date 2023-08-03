@@ -84,13 +84,13 @@ def run_async_server():
 async def publish_data():
     # eventQueue.put(('get', 'test', 'test'))
     while True:
-        print("at the beginning")
+        # print("at the beginning")
         await asyncio.sleep(1)  # Publish data every 1 second
-        print("after wait")
+        # print("after wait")
         if eventQueue.empty():
             continue
 
-        print("publishing data")
+        # print("publishing data")
         operation, key, value = eventQueue.get()        
         # Simulate some data to be published to clients
         data = {
@@ -108,7 +108,7 @@ async def publish_data():
         # Send data to clients subscribed to this operation
         for websocket in channels['operation'].get(operation, set()):
             
-            print("sending data")
+            # print("sending data")
             try:
                 await websocket.send(json.dumps(data))
             except:
@@ -117,7 +117,7 @@ async def publish_data():
         data['type'] = "key"
         # Send data to clients subscribed to this key
         for websocket in channels['key'].get(key, set()):
-            print("sending data")
+            # print("sending data")
             try:
                 await websocket.send(json.dumps(data))
             except:
@@ -291,8 +291,10 @@ def CommandHandler(command):
                 if isServerResponsible(key):
                     print("server is reponsible == replicating command:" + command)
                     trigger_replica_operation(command)
+                    print("putting in queue")
                     eventQueue.put(('put',key,value)) #put key value in queue
-                    return kvs[0].put(key, value)                    
+                    print("putting in kvs")
+                    return kvs[0].put(key, value) + '\r\n'
                 else:
                     return 'server_not_responsible'
             except Exception as e:
@@ -306,7 +308,7 @@ def CommandHandler(command):
                 for curr_kv in kvs:
                     if curr_kv.is_responsible(key, metadata):
                         eventQueue.put(('get',key, curr_kv.get(key))) #get operation to queue
-                        return curr_kv.get(key)
+                        return curr_kv.get(key) + '\r\n'
 
                 return 'server_not_responsible'
             except Exception as e:
@@ -319,7 +321,7 @@ def CommandHandler(command):
                 if isServerResponsible(key):                    
                     trigger_replica_operation(command)
                     eventQueue.put(('delete',key,None)) #delete operation to queue
-                    return kvs[0].delete(key)
+                    return kvs[0].delete(key) + '\r\n'
                 else:
                     return 'server_not_responsible'
             except Exception as e:
@@ -681,6 +683,7 @@ class MyRequestHandler(socketserver.BaseRequestHandler):
                 break
 
             resp = CommandHandler(data.decode('ascii'))
+            # print(f"resp: {resp}")
 
             # print(f"resp: {resp}")
             if resp == 'close_connection':
@@ -691,6 +694,7 @@ class MyRequestHandler(socketserver.BaseRequestHandler):
 
             # print(f"-- Operation doneeeee {server_info}")
             # Send the response to client or kvs or ecs
+            # print(f"resp2: {resp}")
             self.request.sendall(str(resp).encode())
         # Close the client connection
         self.request.close()
@@ -884,8 +888,8 @@ if __name__ == "__main__":
     async_server_thread = threading.Thread(target=run_async_server)
     async_server_thread.start()
 
-    with GracefulThreadingTCPServer((args.address, int(args.port)), MyRequestHandler) as server, \
-        GracefulThreadingTCPServer((args.address, int(args.port) + 1000), MyHeartBeatRequestHandler) as heartbeat_server:        
+    with GracefulThreadingTCPServer(("0.0.0.0", int(args.port)), MyRequestHandler) as server, \
+        GracefulThreadingTCPServer(("0.0.0.0", int(args.port) + 1000), MyHeartBeatRequestHandler) as heartbeat_server:        
         # Start the server in a separate thread
         server_thread = threading.Thread(target=run_server, args=(server,))
         server_thread.daemon = True  # This ensures that the thread will exit when the main program exits

@@ -56,13 +56,13 @@ def run_async_server():
 async def publish_data():
     # eventQueue.put(('get', 'test', 'test'))
     while True:
-        print("at the beginning")
+        # print("at the beginning")
         await asyncio.sleep(1)  # Publish data every 1 second
-        print("after wait")
+        # print("after wait")
         if eventQueue.empty():
             continue
 
-        print("publishing data")
+        # print("publishing data")
         operation, queueData = eventQueue.get()        
         # Simulate some data to be published to clients
         data = {
@@ -79,7 +79,7 @@ async def publish_data():
         # Send data to clients subscribed to this operation
         for websocket in channels['operation'].get(operation, set()):
             
-            print("sending data")
+            # print("sending data")
             try:
                 await websocket.send(json.dumps(data))
             except:
@@ -276,6 +276,8 @@ class MyRequestHandler(socketserver.BaseRequestHandler):
                         client_thread.start()
                         # sendUpdatedMetaDataToAllServers() # send updated meta data to all servers            
                         # start pinging server
+                        print(f"ping port is {int(port)+1000}")
+                        print(f"ping ip is {ip}")
                         client_thread = threading.Thread(target=startPingingServer, args=(ip,int(port)+1000))
                         client_thread.start()
                     except Exception as e:
@@ -394,7 +396,7 @@ if __name__ == "__main__":
     async_server_thread = threading.Thread(target=run_async_server)
     async_server_thread.start()
 
-    with GracefulThreadingTCPServer((args.address, int(args.port)), MyRequestHandler) as server:
+    with GracefulThreadingTCPServer(("0.0.0.0", int(args.port)), MyRequestHandler) as server:
 
         # Start the server in a separate thread
         server_thread = threading.Thread(target=run_server, args=(server,))
