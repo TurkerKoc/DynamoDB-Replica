@@ -23,11 +23,9 @@
         const ecsHandlers = {
             'keyrange': function (data) {
                 console.log(`Received a 'keyrange' operation with data:`);
-                const parsedData = JSON.parse(data.data, (key, value) => {
-                    // Convert "start" and "end" keys to lowercase to handle case-insensitivity
-                    return value;
-                });
-
+                console.log(data)
+                console.log(data.data)
+                const parsedData = JSON.parse(data.data);
                 console.log(parsedData);
                 // console.log(data.data)
                 // for (curData in data.data) {

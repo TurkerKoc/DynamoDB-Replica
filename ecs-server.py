@@ -41,9 +41,18 @@ async def handle_client(websocket, path):
         data = json.loads(message)
         print(f"handle {data}")
         if data.get('action') == 'subscribe':
+            if data.get('type') == 'operation' and data.get('name') == 'keyrange':
+                await send_initial_keyrange(websocket)
             await subscribe(websocket, data.get('type'), data.get('name'))
         elif data.get('action') == 'unsubscribe':
             await unsubscribe(websocket, data.get('type'), data.get('name'))
+async def send_initial_keyrange(websocket):
+    data = {
+        'type': 'operation',
+        'operation': 'keyrange',
+        'data': meta_data.ranges,
+    }
+    await websocket.send(json.dumps(data))
 
 def run_async_server():
     loop = asyncio.new_event_loop()
