@@ -14,6 +14,7 @@ import copy
 import asyncio
 import websockets
 import queue
+import datetime
 
 
 metadata = []
@@ -91,12 +92,13 @@ async def publish_data():
             continue
 
         # print("publishing data")
-        operation, key, value = eventQueue.get()        
+        operation, key, value, timestamp = eventQueue.get()        
         # Simulate some data to be published to clients
         data = {
             'operation': operation,
             'key': key,
-            'value': value
+            'value': value,
+            'timestamp': timestamp
         }
         print(data)
         print(channels)
@@ -291,8 +293,10 @@ def CommandHandler(command):
                 if isServerResponsible(key):
                     print("server is reponsible == replicating command:" + command)
                     trigger_replica_operation(command)
-                    print("putting in queue")
-                    eventQueue.put(('put',key,value)) #put key value in queue
+                    print("putting in queue")                                            
+                    current_datetime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    print("Put operation timestamp: ", current_datetime)
+                    eventQueue.put(('put',key,value,current_datetime)) #put key value in queue
                     print("putting in kvs")
                     return kvs[0].put(key, value) + '\r\n'
                 else:
@@ -307,7 +311,10 @@ def CommandHandler(command):
                 print(f"key: {key}")
                 for curr_kv in kvs:
                     if curr_kv.is_responsible(key, metadata):
-                        eventQueue.put(('get',key, curr_kv.get(key))) #get operation to queue
+                        current_datetime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        print("Put operation timestamp: ", current_datetime)
+                        cur_value = ' '.join(curr_kv.get(key).split()[2:])
+                        eventQueue.put(('get',key, cur_value, current_datetime)) #get operation to queue
                         return curr_kv.get(key) + '\r\n'
 
                 return 'server_not_responsible'
@@ -320,7 +327,9 @@ def CommandHandler(command):
                 key = command.split(' ')[1]    
                 if isServerResponsible(key):                    
                     trigger_replica_operation(command)
-                    eventQueue.put(('delete',key,None)) #delete operation to queue
+                    current_datetime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    print("Put operation timestamp: ", current_datetime)
+                    eventQueue.put(('delete',key,None,current_datetime)) #delete operation to queue
                     return kvs[0].delete(key) + '\r\n'
                 else:
                     return 'server_not_responsible'

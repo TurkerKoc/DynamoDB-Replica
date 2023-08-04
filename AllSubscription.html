@@ -62,6 +62,8 @@
             socket.send(JSON.stringify(message));
             message = { action: 'subscribe', type: 'operation', name: 'put' };
             socket.send(JSON.stringify(message));
+            message = { action: 'subscribe', type: 'operation', name: 'delete' };
+            socket.send(JSON.stringify(message));
             message = { action: 'subscribe', type: 'key', name: 'myKey' };
             socket.send(JSON.stringify(message));
         };
@@ -69,11 +71,15 @@
         // Define different handlers for different operations or keys
         const operationHandlers = {
             'get': function (data) {
-                console.log(`Received a 'get' operation with data:`, JSON.stringify(data));
+                console.log(`Received a 'get' operation with data:`, data);
                 // ...do something with the data...
             },
             'put': function (data) {
                 console.log(`Received a 'put' operation with data:`, data);
+                // ...do something with the data...
+            },
+            'delete': function (data) {
+                console.log(`Received a 'delete' operation with data:`, data);
                 // ...do something with the data...
             }
         };
