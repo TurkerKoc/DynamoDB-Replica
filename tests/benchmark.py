@@ -11,6 +11,11 @@ from socket import socket, timeout
 from datetime import datetime
 import os
 import signal
+import generateDataset
+import websockets
+import asyncio
+import logging
+
 
 
 # Define your signal handler functions
@@ -106,7 +111,7 @@ class ClientThread(Thread):
                                 # print(f"Operation took {end_time - start_time} seconds")
 
                                 if "server_not_responsible" in response:
-                                    client.send("keyrange")
+                                    client.send("keyrange"+'\r\n')
                                     keyrange_response = client.receive()
                                     servers = client.handle_keyrange_response(keyrange_response)
                                     responsible_server = client.find_responsible_server(servers, key)
@@ -207,34 +212,66 @@ class SocketClient:
             "ip": ip,
             "port": int(port)
         }
+    
+    def compute_md5_hash(self, string):
+        md5_hash = hashlib.md5()
+        md5_hash.update(string.encode('utf-8'))
+        return md5_hash.hexdigest()
+
+
+    def hexToInt(self, hex_string):
+        return int(hex_string, 16)
 
     def find_responsible_server(self, servers, key):
         # key is converted to MD5 hash and compared in hexadecimal format
-        key_hash = hashlib.md5(key.encode()).hexdigest()
+        key = self.compute_md5_hash(key)
         for server in servers:
-            if server["start"] <= key_hash <= server["end"]:
+            if self.hexToInt(server['start']) <= self.hexToInt(key) <= self.hexToInt(server['end']) or (self.hexToInt(server['start']) > self.hexToInt(server['end']) and (self.hexToInt(key) >= self.hexToInt(server['start']) or self.hexToInt(key) <= self.hexToInt(server['end']))): # right side of or for the first node in the ring
                 return server
         return None
 
     def close(self):
         self.socket.close()
 
+async def run_client(port):
+    websocket_port = port + 100
+    websocket = await websockets.connect(f"ws://localhost:{websocket_port}")
+    await websocket.send(json.dumps({'action': 'subscribe', 'type': 'operation', 'name': 'get'}))
+    await websocket.send(json.dumps({'action': 'subscribe', 'type': 'operation', 'name': 'put'}))
+    await websocket.send(json.dumps({'action': 'subscribe', 'type': 'operation', 'name': 'delete'}))
 
+    while True:
+            message = await websocket.recv()
+            # print(f"Received message: {message}")
+
+def start_run_client_in_thread(port):
+    asyncio.run(run_client(port))
+
+# Generate a dataset with 10,000 unique keys and random values
+dataset_size = 10
+my_dataset = generateDataset.generate_dataset(dataset_size)
+n_clients = 1  # Number of clients
+
+client_datasets = []
+for i in range(n_clients):
+    client_datasets.append(generateDataset.generate_dataset(dataset_size))
+# print(client_datasets)
 # Define the parameters
 params = {
-    'n_servers': 1,  # Number of KVServer instances
-    'n_requests': 10000,  # Number of requests per key
-    'n_subscribers': 0,
+    'n_servers': 4,  # Number of KVServer instances
+    'n_requests': 1,  # Number of requests per key
+    'n_subscribers': 5,
     'host': 'localhost',
     'port_start': 8001,  # Starting port for the KVServer instances
+    'keys': client_datasets
     # Example keys
-    'keys': [
+    # 'keys': [
 
-        [{'key': 'key1', 'value': 'value1'}, {'key': 'key2', 'value': 'value2'},{'key': 'key3', 'value': 'value3'}],
-        [{'key': 'key11', 'value': 'value11'}, {'key': 'key22', 'value': 'value22'},{'key': 'key33', 'value': 'value33'}],
-        [{'key': 'key111', 'value': 'value111'}, {'key': 'key222', 'value': 'value222'}, {'key': 'key333', 'value': 'value333'}]
-                    # , {'key': 'key2', 'value': 'value2'},{'key': 'key3', 'value': 'value3'}
-    ]
+    #     [{'key': 'key1', 'value': 'value1'}, {'key': 'key2', 'value': 'value2'},{'key': 'key3', 'value': 'value3'}],
+    #     [{'key': 'key11', 'value': 'value11'}, {'key': 'key22', 'value': 'value22'},{'key': 'key33', 'value': 'value33'}],
+    #     [{'key': 'key111', 'value': 'value111'}, {'key': 'key222', 'value': 'value222'}, {'key': 'key333', 'value': 'value333'}]
+    #                 # , {'key': 'key2', 'value': 'value2'},{'key': 'key3', 'value': 'value3'}
+    # ]
 }
 print('Defined parameters for benchmarking...')
 print(params)
@@ -247,6 +284,7 @@ threads = []
 monitor_thread = None
 stop_event = threading.Event()
 stop_monitoring = False
+subscribe_client_threads = []
 
 try:
     # Start the ECS
@@ -261,6 +299,7 @@ try:
 
     # Start the KVServer instances
     print('Starting KVServer instances...')
+    loop = asyncio.get_event_loop()
     for i in range(params['n_servers']):
         port = params['port_start'] + i
         server = subprocess.Popen(
@@ -273,6 +312,14 @@ try:
         if server.poll() is not None:
             print(f'KVServer instance {i} failed to start.')
             sys.exit(1)
+
+
+        for i in range(params['n_subscribers']):
+            # thread = threading.Thread(target=loop.run_until_complete, args=(run_client(port),))
+            thread = threading.Thread(target=start_run_client_in_thread, args=(port,))
+            thread.start()
+            subscribe_client_threads.append(thread)
+
         print(f'KVServer instance {i} started.')
 
     server_processes = [psutil.Process(server.pid) for server in servers]
@@ -354,6 +401,10 @@ try:
             for j, usage in enumerate(server_memory_usage[i]):
                 writer.writerow([j, usage])
     print('Saved CPU and memory usage data.')
+
+    for thread in subscribe_client_threads:
+        # Wait for the thread to finish
+        thread.join()
 
     # Wait for a while to make sure everything is finished
     print('Waiting for processes to finish...')
