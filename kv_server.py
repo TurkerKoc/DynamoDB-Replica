@@ -30,13 +30,26 @@ thread = None
 # Dictionary to store subscribed clients for each channel
 channels = {'key': {}, 'operation': {}}
 eventQueue = queue.Queue() # queue for storing messages to be published
-
-async def subscribe(websocket, subscription_type, name):
+operationsData = [] # list of operations to be published to clients
+async def subscribe(websocket, subscription_type, name, get_old_data):
     print(f"subscribing to {subscription_type}: {name}")
     if name not in channels[subscription_type]:
         channels[subscription_type][name] = set()
     channels[subscription_type][name].add(websocket)
     print(channels)
+    if(get_old_data == "true"):
+        try:
+            if name == 'get':
+                get_operations = [operation for operation in operationsData if operation['operation'] == 'get']
+                await websocket.send(json.dumps(get_operations))
+            elif name == 'put':
+                put_operations = [operation for operation in operationsData if operation['operation'] == 'put']
+                await websocket.send(json.dumps(put_operations))
+            elif name == 'delete':
+                delete_operations = [operation for operation in operationsData if operation['operation'] == 'delete']
+                await websocket.send(json.dumps(delete_operations))
+        except:
+            pass
 
 async def unsubscribe(websocket, subscription_type, name):
     print("inside unsbs")
@@ -67,7 +80,7 @@ async def handle_client(websocket, path):
         data = json.loads(message)
         print(f"handle {data}")
         if data.get('action') == 'subscribe':
-            await subscribe(websocket, data.get('type'), data.get('name'))
+            await subscribe(websocket, data.get('type'), data.get('name'), data.get('get_old_data'))
         elif data.get('action') == 'unsubscribe':
             await unsubscribe(websocket, data.get('type'), data.get('name'))
         elif data.get('action') == 'data':
@@ -100,8 +113,10 @@ async def publish_data():
             'value': value,
             'timestamp': timestamp
         }
-        print(data)
-        print(channels)
+        operationsData.append(data)
+        # print(operationsData)
+        # print(data)
+        # print(channels)
         
         # if channels.get('operations', {}).get(operation) or channels.get('keys', {}).get(key):
             # There's at least one websocket to send data to
@@ -291,13 +306,13 @@ def CommandHandler(command):
                 key = command.split(' ')[1]
                 value = ' '.join(command.split(' ')[2:])
                 if isServerResponsible(key):
-                    print("server is reponsible == replicating command:" + command)
+                    # print("server is reponsible == replicating command:" + command)
                     trigger_replica_operation(command)
-                    print("putting in queue")                                            
+                    # print("putting in queue")
                     current_datetime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    print("Put operation timestamp: ", current_datetime)
+                    # print("Put operation timestamp: ", current_datetime)
                     eventQueue.put(('put',key,value,current_datetime)) #put key value in queue
-                    print("putting in kvs")
+                    # print("putting in kvs")
                     return kvs[0].put(key, value) + '\r\n'
                 else:
                     return 'server_not_responsible'
@@ -627,7 +642,7 @@ class MyHeartBeatRequestHandler(socketserver.BaseRequestHandler):
 
         welcome_message = "Welcome to the key value storage server!\r\n"
         self.request.sendall(welcome_message.encode())
-        self.request.settimeout(20)
+        # self.request.settimeout(20)
         while True:
             # Receive data from the client
             try:

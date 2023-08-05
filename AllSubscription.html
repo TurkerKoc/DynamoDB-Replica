@@ -58,11 +58,11 @@
 
         socket.onopen = function () {
             console.log('WebSocket connection opened.');
-            let message = { action: 'subscribe', type: 'operation', name: 'get' };
+            let message = { action: 'subscribe', type: 'operation', name: 'get', get_old_data: 'true' };
             socket.send(JSON.stringify(message));
-            message = { action: 'subscribe', type: 'operation', name: 'put' };
+            message = { action: 'subscribe', type: 'operation', name: 'put', get_old_data: 'true' };
             socket.send(JSON.stringify(message));
-            message = { action: 'subscribe', type: 'operation', name: 'delete' };
+            message = { action: 'subscribe', type: 'operation', name: 'delete', get_old_data: 'true' };
             socket.send(JSON.stringify(message));
             message = { action: 'subscribe', type: 'key', name: 'myKey' };
             socket.send(JSON.stringify(message));
@@ -112,6 +112,7 @@
                 console.log(JSON.parse(data.data))
                 console.log((JSON.parse(data.data))["localhost:8001"])
             } else {
+                console.log(data)
                 console.warn(`No handler found for operation "${data.operation}" or key "${data.key}"`);
             }
         };
