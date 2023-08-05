@@ -247,14 +247,19 @@ async def run_client(port):
 def start_run_client_in_thread(port):
     asyncio.run(run_client(port))
 
-# Generate a dataset with 10,000 unique keys and random values
-dataset_size = 10
-my_dataset = generateDataset.generate_dataset(dataset_size)
-n_clients = 1  # Number of clients
 
+def read_dataset_from_csv(filename):
+    dataset = []
+    with open(filename, mode='r') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            dataset.append(row)
+    return dataset
+
+n_clients = 1  # Number of clients
 client_datasets = []
 for i in range(n_clients):
-    client_datasets.append(generateDataset.generate_dataset(dataset_size))
+    client_datasets.append(read_dataset_from_csv('data_10.csv'))
 # print(client_datasets)
 # Define the parameters
 params = {

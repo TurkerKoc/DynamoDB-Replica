@@ -1,5 +1,6 @@
 import random
 import string
+import csv
 
 def generate_random_key(existing_keys):
     key_length = 10  # Set the desired key length
@@ -8,37 +9,36 @@ def generate_random_key(existing_keys):
         if key not in existing_keys:
             return key
 
-def generate_dataset(size):
-    dataset = []
+def generate_dataset_and_save_to_csv(size, filename):
     existing_keys = set()
-    for _ in range(size):
-        key = generate_random_key(existing_keys)
-        value = ''.join(random.choices(string.ascii_letters + string.digits, k=20))  # Random value length of 20 characters
-        item = {'key': key, 'value': value}
-        dataset.append(item)
-        existing_keys.add(key)
+    with open(filename, mode='w', newline='') as file:
+        fieldnames = ['key', 'value']
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+
+        writer.writeheader()
+        for _ in range(size):
+            key = generate_random_key(existing_keys)
+            value = ''.join(random.choices(string.ascii_letters + string.digits, k=20))  # Random value length of 20 characters
+            item = {'key': key, 'value': value}
+            writer.writerow(item)
+            existing_keys.add(key)
+
+
+generate_dataset_and_save_to_csv(10, 'data_10.csv')
+generate_dataset_and_save_to_csv(100, 'data_100.csv')
+generate_dataset_and_save_to_csv(1000, 'data_1000.csv')
+generate_dataset_and_save_to_csv(10000, 'data_10000.csv')
+
+def read_dataset_from_csv(filename):
+    dataset = []
+    with open(filename, mode='r') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            dataset.append(row)
     return dataset
 
-# Generating an array of dictionaries with 'key' and 'value' structure
-# dataset_size = 3
-# client_datasets = []
-# for i in range(3):
-#     client_datasets.append(generate_dataset(dataset_size))
-# print(client_datasets)
-
-
-
-
-# Generating a dataset with 10,000 unique keys and random values
-# dataset_size = 10000
-# my_dataset = generate_dataset(dataset_size)
-
-# # Saving the dataset to a CSV file
-# csv_file = 'dataset.csv'
-# with open(csv_file, 'w', newline='') as csvfile:
-#     writer = csv.writer(csvfile)
-#     writer.writerow(['Key', 'Value'])
-#     for key, value in my_dataset.items():
-#         writer.writerow([key, value])
-
-# print(f"Dataset with {dataset_size} keys saved to {csv_file}.")
+n_clients = 3  # Number of clients
+client_datasets = []
+for i in range(n_clients):
+    client_datasets.append(read_dataset_from_csv('data_10.csv'))
+print(client_datasets)
